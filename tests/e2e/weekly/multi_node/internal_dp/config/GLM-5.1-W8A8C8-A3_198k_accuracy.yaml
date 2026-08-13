@@ -1,5 +1,5 @@
-#198k长序列只验证功能
-test_name: "multi-node-GLM-5.1-W8A8C8-MTP-A3_198k_function"
+#198k长序列精度测试
+test_name: "multi-node-GLM-5.1-W8A8C8-MTP-A3_198k_accuracy"
 model: "Eco-Tech/GLM-5.1-w8a8c8"
 num_nodes: 2
 npu_per_node: 8
@@ -48,8 +48,10 @@ deployment:
       --additional-config '{"enable_dsa_cp": true, "enable_sparse_sfa_c8": true, "enable_sparse_li_c8": true, "enable_balance_scheduling": true, "fuse_muls_add": true, "multistream_overlap_shared_expert": true}' 
       --speculative-config '{"num_speculative_tokens": 3, "method": "deepseek_mtp","enforce_eager":true}'
       --offload-backend prefetch
-      --offload-group-size 8
-      --offload-num-in-group 4
+      --offload-group-size 4
+      --offload-num-in-group 1
+      --offload-prefetch-step 1
+      --offload_params '{"gate_up_proj", "down_proj"}'
   -
     envs:
       <<: *env_common
@@ -83,8 +85,10 @@ deployment:
       --additional-config '{"enable_dsa_cp": true, "enable_sparse_sfa_c8": true, "enable_sparse_li_c8": true, "enable_balance_scheduling": true, "fuse_muls_add": true, "multistream_overlap_shared_expert": true}'  
       --speculative-config '{"num_speculative_tokens": 3, "method": "deepseek_mtp","enforce_eager":true}'
       --offload-backend prefetch
-      --offload-group-size 8
-      --offload-num-in-group 4
+      --offload-group-size 4
+      --offload-num-in-group 1
+      --offload-prefetch-step 1
+      --offload_params '{"gate_up_proj", "down_proj"}'
 benchmarks:
   perf:
     case_type: performance
@@ -93,7 +97,7 @@ benchmarks:
     dataset_conf: gsm8k/gsm8k_gen_0_shot_cot_str_perf
     num_prompts: 8
     max_out_len: 1500
-    batch_size: 2
+    batch_size: 1
     request_rate: 0
     baseline: 1
     threshold: 0.97
@@ -103,7 +107,7 @@ benchmarks:
     request_conf: vllm_api_general_chat
     dataset_conf: aime2025/aime2025_gen_0_shot_chat_prompt
     max_out_len: 129024
-    batch_size: 32
+    batch_size: 16
     baseline: 93.33
     threshold: 10
     temperature: 1.0
