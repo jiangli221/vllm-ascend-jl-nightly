@@ -2,7 +2,7 @@
 test_name: "multi-node-GLM-5.1-W8A8C8-MTP-A3_198k_function"
 model: "Eco-Tech/GLM-5.1-w8a8c8"
 num_nodes: 2
-npu_per_node: 8
+npu_per_node: 16
 env_common: &env_common
   HCCL_OP_EXPANSION_MODE: "AIV"
   OMP_PROC_BIND: "false"
@@ -23,8 +23,8 @@ deployment:
       vllm serve Eco-Tech/GLM-5.1-w8a8c8
       --host 0.0.0.0
       --port $SERVER_PORT
-      --data-parallel-size 4
-      --data-parallel-size-local 2
+      --data-parallel-size 8
+      --data-parallel-size-local 4
       --data-parallel-start-rank 0
       --data-parallel-address $LOCAL_IP
       --enable-expert-parallel
@@ -47,9 +47,6 @@ deployment:
       --compilation-config '{"cudagraph_mode": "FULL_DECODE_ONLY"}'
       --additional-config '{"enable_dsa_cp": true, "enable_sparse_sfa_c8": true, "enable_sparse_li_c8": true, "enable_balance_scheduling": true, "fuse_muls_add": true, "multistream_overlap_shared_expert": true}' 
       --speculative-config '{"num_speculative_tokens": 3, "method": "deepseek_mtp","enforce_eager":true}'
-      --offload-backend prefetch
-      --offload-group-size 8
-      --offload-num-in-group 4
   -
     envs:
       <<: *env_common
@@ -57,9 +54,9 @@ deployment:
       vllm serve Eco-Tech/GLM-5.1-w8a8c8
       --host 0.0.0.0
       --port $SERVER_PORT
-      --data-parallel-size 4
-      --data-parallel-size-local 2
-      --data-parallel-start-rank 2
+      --data-parallel-size 8
+      --data-parallel-size-local 4
+      --data-parallel-start-rank 4
       --headless
       --data-parallel-address $MASTER_IP
       --enable-expert-parallel
@@ -82,9 +79,6 @@ deployment:
       --compilation-config '{"cudagraph_mode": "FULL_DECODE_ONLY"}'
       --additional-config '{"enable_dsa_cp": true, "enable_sparse_sfa_c8": true, "enable_sparse_li_c8": true, "enable_balance_scheduling": true, "fuse_muls_add": true, "multistream_overlap_shared_expert": true}'  
       --speculative-config '{"num_speculative_tokens": 3, "method": "deepseek_mtp","enforce_eager":true}'
-      --offload-backend prefetch
-      --offload-group-size 8
-      --offload-num-in-group 4
 benchmarks:
   perf:
     case_type: performance
