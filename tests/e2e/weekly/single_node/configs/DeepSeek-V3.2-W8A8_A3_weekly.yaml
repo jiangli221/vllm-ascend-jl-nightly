@@ -146,4 +146,38 @@ test_cases:
       - "--async-scheduling"
     benchmarks:
       <<: *benchmarks_2048
+  - name: "DeepSeek-V3.2-W8A8-offload-perf"
+    model: "vllm-ascend/DeepSeek-V3.2-W8A8"
+    envs:
+      <<: *envs
+    server_cmd: *server_cmd
+    server_cmd_extra:
+      - "--async-scheduling"
+      - "--offload-backend"
+      - "prefetch"
+      - "--offload-group-size"
+      - "8"
+      - "--offload-num-in-group"
+      - "4"
+    benchmarks:
+      <<: *benchmarks_2048
+  - name: "DeepSeek-V3.2-W8A8-offload-accuracy"
+    model: "vllm-ascend/DeepSeek-V3.2-W8A8"
+    envs:
+      <<: *envs
+    server_cmd: *server_cmd
+    server_cmd_extra:
+      - "--async-scheduling"
+      - "--offload-backend"
+      - "prefetch"
+      - "--offload-group-size"
+      - "4"
+      - "--offload-num-in-group"
+      - "1"
+      - "--offload-prefetch-step"
+      - "1"
+      - "--offload-params"
+      - '{"gate_up_proj", "down_proj"}'
+    benchmarks:
+      <<: *benchmarks_2048
 
