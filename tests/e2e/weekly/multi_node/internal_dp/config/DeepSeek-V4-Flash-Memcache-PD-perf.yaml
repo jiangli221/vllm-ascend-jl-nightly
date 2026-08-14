@@ -1,0 +1,106 @@
+# Memcache支持DeepSeek V4 Flash 双机PD分离性能测试
+test_name: "DeepSeek-V4-Flash-Memcache-PD-perf"
+model: "vllm-ascend/DeepSeek-V4-Flash-w8a8-mtp"
+num_nodes: 2
+npu_per_node: 16
+
+env_common: &env_common
+  VLLM_RPC_TIMEOUT: "3600000"
+  VLLM_EXECUTE_MODEL_TIMEOUT_SECONDS: "30000"
+  HCCL_EXEC_TIMEOUT: "204"
+  HCCL_CONNECT_TIMEOUT: "120"
+  OMP_PROC_BIND: "false"
+  OMP_NUM_THREADS: "10"
+  PYTORCH_NPU_ALLOC_CONF: "expandable_segments:True"
+  TASK_QUEUE_ENABLE: "1"
+  HCCL_OP_EXPANSION_MODE: "AIV"
+  PYTHONHASHSEED: "0"
+  MMC_LOCAL_CONFIG_PATH: "/{INSTALL_PATH}/memcache_hybrid/config/mmc-local.conf"
+  VLLM_PREFIX_CACHE_RETENTION_INTERVAL: "4096"
+  SERVER_PORT: "DEFAULT_PORT"
+  DISAGGREGATED_PREFILL_PROXY_SCRIPT: "examples/disaggregated_prefill_v1/load_balance_proxy_server_example.py"
+
+disaggregated_prefill:
+  enabled: true
+  prefiller_host_index: [0]
+  decoder_host_index: [1]
+
+deployment:
+  - envs:
+      <<: *env_common
+      HCCL_BUFFSIZE: "2560"
+    server_cmd: >
+      vllm serve vllm-ascend/DeepSeek-V4-Flash-w8a8-mtp
+      --host 0.0.0.0
+      --port $SERVER_PORT
+      --data-parallel-size ${DP_SIZE}
+      --data-parallel-rank ${DP_RANK}
+      --data-parallel-address ${DP_ADDRESS}
+      --data-parallel-rpc-port ${DP_RPC_PORT}
+      --tensor-parallel-size ${TP_SIZE}
+      --enable-expert-parallel
+      --seed 1024
+      --max-model-len 1048576
+      --max-num-batched-tokens 8192
+      --max-num-seqs 16
+      --no-disable-hybrid-kv-cache-manager
+      --model-loader-extra-config '{"enable_multithread_load": true, "num_threads": 128}'
+      --speculative-config '{"num_speculative_tokens": 1,"method": "mtp","enforce_eager": true}'
+      --trust-remote-code
+      --block-size 32
+      --tokenizer-mode deepseek_v4
+      --tool-call-parser deepseek_v4
+      --enable-auto-tool-choice
+      --reasoning-parser deepseek_v4
+      --gpu-memory-utilization 0.9
+      --quantization ascend
+      --enforce-eager
+      --additional-config '{"enable_cpu_binding": true, "enable_shared_expert_dp": true, "enable_dsa_cp": true, "enable_flashcomm1":true}'
+      --kv-transfer-config '{"kv_connector": "MultiConnector", "kv_role": "kv_producer", "kv_connector_extra_config": {"connectors": [{"kv_connector": "MooncakeHybridConnector", "kv_role": "kv_producer", "kv_port": "30000", "kv_connector_extra_config": {"prefill": {"dp_size": 4, "tp_size": 4}, "decode": {"dp_size": 16, "tp_size": 1}}}, {"kv_connector": "AscendStoreConnector", "kv_role": "kv_producer", "kv_connector_extra_config": {"backend": "memcache"}}]}}'
+  - envs:
+      <<: *env_common
+      HCCL_BUFFSIZE: "1024"
+      HCCL_CONNECT_TIMEOUT: "1200"
+      VLLM_ASCEND_ENABLE_MLAPO: "1"
+    server_cmd: >
+      vllm serve vllm-ascend/DeepSeek-V4-Flash-w8a8-mtp
+      --host 0.0.0.0
+      --port $SERVER_PORT
+      --data-parallel-size ${DP_SIZE}
+      --data-parallel-rank ${DP_RANK}
+      --data-parallel-address ${DP_ADDRESS}
+      --data-parallel-rpc-port ${DP_RPC_PORT}
+      --tensor-parallel-size ${TP_SIZE}
+      --enable-expert-parallel
+      --seed 1024
+      --max-model-len 1048576
+      --max-num-batched-tokens 120
+      --max-num-seqs 60
+      --block-size 32
+      --no-disable-hybrid-kv-cache-manager
+      --no-enable-prefix-caching
+      --trust-remote-code
+      --tokenizer-mode deepseek_v4
+      --model-loader-extra-config '{"enable_multithread_load": true, "num_threads": 128}'
+      --tool-call-parser deepseek_v4
+      --enable-auto-tool-choice
+      --reasoning-parser deepseek_v4
+      --gpu-memory-utilization 0.9
+      --quantization ascend
+      --speculative-config '{"num_speculative_tokens": 1,"method": "mtp","enforce_eager": true}'
+      --compilation-config '{"cudagraph_mode": "FULL_DECODE_ONLY"}'
+      --additional-config '{"ascend_compilation_config":{"enable_npugraph_ex":true,"enable_static_kernel":false}, "enable_cpu_binding":true, "multistream_overlap_shared_expert":true, "recompute_scheduler_enable":true}'
+      --kv-transfer-config '{"kv_connector": "MultiConnector", "kv_role": "kv_consumer", "kv_connector_extra_config": {"connectors": [{"kv_connector": "MooncakeHybridConnector", "kv_role": "kv_consumer", "kv_port": "30100", "kv_connector_extra_config": {"prefill": {"dp_size": 4, "tp_size": 4}, "decode": {"dp_size": 16, "tp_size": 1}}}, {"kv_connector": "AscendStoreConnector", "kv_role": "kv_consumer", "kv_connector_extra_config": {"backend": "memcache"}}]}}'
+
+benchmarks:
+  perf:
+    case_type: performance
+    dataset_path: vllm-ascend/GSM8K-in3500-bs400
+    request_conf: vllm_api_stream_chat
+    dataset_conf: gsm8k/gsm8k_gen_0_shot_cot_str_perf
+    num_prompts: 64
+    max_out_len: 1500
+    batch_size: 16
+    request_rate: 0
+    baseline: 1
+    threshold: 0.97
