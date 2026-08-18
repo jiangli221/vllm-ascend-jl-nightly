@@ -4,12 +4,13 @@ test_cases:
     model: "Eco-Tech/Qwen3.5-397B-A17B-w8a8-mtp"
     envs:
       PYTHONHASHSEED: "0"
-      MMC_LOCAL_CONFIG_PATH: "/{INSTALL_PATH}/memcache_hybrid/config/mmc-local.conf"
+      MMC_LOCAL_CONFIG_PATH: "/mnt/share/j30080978/nightly/mmc-local.conf"
       PYTORCH_NPU_ALLOC_CONF: "expandable_segments:True"
       HCCL_OP_EXPANSION_MODE: "AIV"
       HCCL_BUFFSIZE: "1024"
       OMP_NUM_THREADS: "1"
       TASK_QUEUE_ENABLE: "1"
+      LD_PRELOAD: "/usr/lib64/libjemalloc.so.2"
       SERVER_PORT: "DEFAULT_PORT"
     server_cmd:
       - "--data-parallel-size"
@@ -44,7 +45,7 @@ test_cases:
     benchmarks:
       perf:
         case_type: performance
-        dataset_path: vllm-ascend/GSM8K-in3500-bs400
+        dataset_path: vllm-ascend/GSM8K-in32768-bs400
         request_conf: vllm_api_stream_chat
         dataset_conf: gsm8k/gsm8k_gen_0_shot_cot_str_perf
         num_prompts: 64
